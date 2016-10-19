@@ -1,53 +1,6 @@
 import copy
 
-def solve(puzzle, word_bank):
-    """
-    Solves the provided crossword puzzle using words from the word bank.
-    
-    Args:
-        puzzle: A crossword_tools.Puzzle object.
-        word_bank: A list of strings.
-    
-    Returns:
-        A list of dictionaries, where each dictionary is a solution to the
-        puzzle, mapping every line id in the puzzle to a word from the word 
-        bank. None is returned if a solution could not be found.
-        found.
-    """
-    
-    fitting_words = {}
-    word_by_length = {}
-    solution_set = []
-    
-    # First, we make a dictionary mapping a length to a list of words from the
-    # word bank with that length
-    for word in word_bank:
-        length = len(word)
-        if length not in word_by_length:
-            word_by_length[length] = []
-        word_by_length[length].append(word)
-    
-    # Next, we find the length of each line and take the list of words that can
-    # fit there from the word_by_length dictionary
-    for line_id, line in puzzle.lines.items():
-        if line.length not in word_by_length:
-            return None
-        fitting_words[line_id] = copy.copy(word_by_length[line.length])
-        if fitting_words[line_id] == None:
-            return None
-    
-    keylist = list(puzzle.lines.keys())
-    if not keylist:
-        return None
-    
-    # Finally, we pass in the information we have generated to the 
-    # find_solutions function, which will modify solution_set to contain all of
-    # the solutions to the puzzle, so it can be returned to the user.
-    find_solutions(puzzle, fitting_words, solution_set)
-    
-    return solution_set
-
-def find_solutions(puzzle, fitting_words, solution_set):
+def find_solutions(puzzle, fitting_words):
     """
     Fills solution_set with all of the possible solutions to the puzzle, based
     on the words from fitting_words, where each solution is a dictionary mapping
@@ -57,17 +10,25 @@ def find_solutions(puzzle, fitting_words, solution_set):
         puzzle: The puzzle being solved.
         fitting_words: A dictionary mapping every line id in puzzle to a list of
                        words that are the right size to fit in that line.
-        solution_set: An empty list that will be modified to contain multiple
-                      dictionaries, where each dictionary is a solution to the
-                      puzzle, mapping every line id to a word from 
-                      fitting_words.
+    Returns:
+        A list of dictionaries, where each dictionary is a solution to the
+        puzzle, mapping every line id in the puzzle to a word from the word 
+        bank. None is returned if a solution could not be found.
+        found.
     """
     
     initial_id = get_optimal_guess_line(list(puzzle.lines.keys()), fitting_words)
         
+    solution_set = []    
+    
     current_solution = {}
     for possible_word in fitting_words[initial_id]:
         guess_word(puzzle, initial_id, possible_word, fitting_words, current_solution, solution_set)
+    
+    if not solution_set:
+        return None
+    else:
+        return solution_set
 
 def guess_word(puzzle, line_id, guess, fitting_words, current_solution, solution_set):
     """

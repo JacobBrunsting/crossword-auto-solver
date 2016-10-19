@@ -9,6 +9,7 @@ import copy
 DIR_DOWN = 0
 DIR_RIGHT = 1
 FILLER_CHAR = '#'
+HIGHLIGHT_CHAR = 'X'
 
 
 class Puzzle(object):
@@ -23,7 +24,7 @@ class Puzzle(object):
     """
         
     def __init__(self):
-        self.lines = {}
+        self.lines = {} # TODO: This can be made into a list, not too much point in it being a dictionary
     
     def add_line(self, length, direction, intersection_points, line_id):
         """
@@ -35,11 +36,19 @@ class Puzzle(object):
                        where down is DIR_DOWN, and right is DIR_RIGHT.
             intersection_points: A list of intersection points describing every
                                  line the new line intersects, and where.
-            line_id: The unique integer id of the line.
+            line_id: The unique integer id of the line. Must be non-negative.
         """
         
         new_line = Puzzle.CrosswordLine(length, direction, intersection_points)
         self.lines[line_id] = new_line
+    
+    def get_line_ids(self):
+        """
+        Gets the id's of all of the lines in the puzzle
+        Returns:
+            A list of integers
+        """
+        return self.lines.keys();
         
     class CrosswordLine(object):    
         """
@@ -126,7 +135,7 @@ class CoordMap(object):
         else:
             self._coord_map[x] = {y : val}
             
-    def add_line(self, direction, x, y, values):
+    def add_line(self, direction, x, y, values, overwrite):
         """
         Maps the items in values to a line of coordinates starting at the 
         provided x and y value, and going in the provided direction.
@@ -138,15 +147,23 @@ class CoordMap(object):
             y: the y coordinate the line starts at.
             values: An array of the values that are going to be mapped to 
                     coordinates in the line.
+            overwrite: A boolean that determines whether or not already assigned
+                       positions should be overwritten by the new line
         """
         x = x - self._x_shift
         y = y - self._y_shift
         
+        curx = x
+        cury = y
         for i in range(len(values)):
             if direction == DIR_RIGHT:
-                self.set_val(x + i, y, values[i])
+                curx = x + i
             elif direction == DIR_DOWN:
-                self.set_val(x, y + i, values[i])
+                cury = y + i
+            else:
+                return
+            if overwrite or self.get_val(curx, cury) == None:
+                self.set_val(curx, cury, values[i])
     
     def overlay_coordmap(self, coordmap, xoffset, yoffset):
         """
@@ -295,16 +312,22 @@ class CoordMap(object):
             self.x = x
             self.y = y
 
-def print_puzzle(puzzle):
+def print_puzzle(puzzle, highlighted_line=-1):
     """
     Prints the provided puzzle into the console, representing the lines with
-    a filler character, and using spaces to fill in the blank spaces.
+    a filler character, and using spaces to fill in the blank spaces. The 
+    line with line id highlighted_line will be printed with a highlight 
+    character instead of a filler character
     
     Args:
         puzzle: The Puzzle object that is describing what should be printed.
+        highlighted_line: An optional parameter specifying the line_id of the 
+                          line to be highlighted, or -1 if no line should be 
+                          highlighted
     """
     
-    print_coord_map(get_empty_puzzle_coordmap(puzzle), 1)
+    print_coord_map(get_empty_puzzle_coordmap(puzzle, highlighted_line), 1)
+    
 
 def print_coord_map(coordmap, border):
     """
@@ -346,26 +369,28 @@ def print_coord_map(coordmap, border):
                     print(val, end="")
         print("")
 
-def get_empty_puzzle_coordmap(puzzle):
+def get_empty_puzzle_coordmap(puzzle, selected_line):
     """
     Generates a CoordMap describing the puzzle without a solution, filling in 
-    the lines with filler characters.
+    the lines with filler characters, or highlight characters if we are at a 
+    line that is supposed to be highlighted.
     
     Args:
         puzzle: The Puzzle object that is the source for the CoordMap.
+        selected_line: The line_id of the line to be highlighted
     
     Returns:
         A CoordMap object created from the provided puzzle, which maps
         coordinates to either a space character, or a filler character.
     """
     
-    coordmaps = get_puzzle_coordmaps(puzzle)
+    coordmaps = get_puzzle_coordmaps(puzzle, highlighted_line=selected_line)
     if coordmaps:
         return coordmaps[0]
     else:
         return None
 
-def get_puzzle_coordmaps(puzzle, solution_set = None):
+def get_puzzle_coordmaps(puzzle, solution_set = None, highlighted_line=-1):
     """
     Generates a set of CoordMap's that can be used to display the solutions to
     the provided puzzle, or display the puzzle using filler characters if there
@@ -377,6 +402,9 @@ def get_puzzle_coordmaps(puzzle, solution_set = None):
                       dictionaries describing solutions to the provided puzzle,
                       where each dictionary maps the id of each of the lines in
                       the provided Puzzle to a word that goes in that line.
+        highlighted_line: An optional parameter which, if set, will fill the
+                          selected line with highlight characters, provided it
+                          is not in the solution_set
     Returns:
         A list of CoordMap's containing the mappings required to display the
         provided solutions to the puzzle.
@@ -405,8 +433,9 @@ def get_puzzle_coordmaps(puzzle, solution_set = None):
         # connected to it through intersection points).
         line_and_descendant_maps = [CoordMap() for i in range(num_solution_coord_maps)]
         current_key = list(lines.keys())[0]
-        lines = add_line_and_descendants_to_coordmaps(line_and_descendant_maps, 0, 0, current_key, lines, solution_set)
-        
+        lines = add_line_and_descendants_to_coordmaps(line_and_descendant_maps, 
+                                                      0, 0, current_key, lines, 
+                                                      solution_set, highlighted_line)
         # Next, we take every CoordMap that was generated, shift it so that all
         # of its elements are at coordinates greater than (0, 0), and then 
         # combine them with the master CoordMap, ensuring they do not overlap
@@ -427,7 +456,7 @@ def get_puzzle_coordmaps(puzzle, solution_set = None):
     
     return solution_coord_maps
     
-def add_line_and_descendants_to_coordmaps(coordmaps, x, y, line_id, lines, line_solutions_by_coordmap):
+def add_line_and_descendants_to_coordmaps(coordmaps, x, y, line_id, lines, line_solutions_by_coordmap, highlighted_line=-1):
     """
     Recursively adds the lines in the lines list to the CoordMaps in the 
     coordmaps list, using line_solutions_by_cooordmap to determine what 
@@ -454,6 +483,9 @@ def add_line_and_descendants_to_coordmaps(coordmaps, x, y, line_id, lines, line_
                                     CoordMap in coordmaps, so it must have the 
                                     same length as coordmaps, or the spaces will
                                     be filled with a filler character.
+        highlighted_line: An optional parameter which, if set, will fill the
+                          selected line with highlight characters, provided it
+                          is not in the solution_set
     
     Returns:
         The lines array with all of the lines that have been added to the
@@ -467,15 +499,20 @@ def add_line_and_descendants_to_coordmaps(coordmaps, x, y, line_id, lines, line_
     # coordmap, if it exists, or with filler characters, if it does not.
     for i, coordmap in enumerate(coordmaps):
         line_solutions = None
+        overwrite_other_lines = True
         if line_solutions_by_coordmap:
             line_solutions = line_solutions_by_coordmap[i]
             
         if line_solutions and line_id in line_solutions:
             line_string = line_solutions[line_id]
         else:
-            line_string = [FILLER_CHAR for i in range(line.length)]
+            if line_id == highlighted_line:
+                line_string = [HIGHLIGHT_CHAR for i in range(line.length)]
+            else:
+                overwrite_other_lines = False
+                line_string = [FILLER_CHAR for i in range(line.length)]
             
-        coordmap.add_line(line.direction, x, y, line_string)
+        coordmap.add_line(line.direction, x, y, line_string, overwrite_other_lines)
     
     # Since we have added the line to the CoordMaps, we no longer want it in the
     # lines list, because we don't want to add it twice and cause infinite
@@ -509,7 +546,7 @@ def add_line_and_descendants_to_coordmaps(coordmaps, x, y, line_id, lines, line_
         else:
             newline_x = newline_x - intersection.second_intersect
         
-        lines = add_line_and_descendants_to_coordmaps(coordmaps, newline_x, newline_y, intersected_id, lines, line_solutions_by_coordmap)
+        lines = add_line_and_descendants_to_coordmaps(coordmaps, newline_x, newline_y, intersected_id, lines, line_solutions_by_coordmap, highlighted_line)
     
     return lines
 
@@ -588,9 +625,9 @@ def generate_puzzle_from_selected_tile_map(coordmap):
     puzzle = Puzzle()
     
     # Calculate the intersection points of each row, and combine these points,
-    # and the row information, by adding it to the puzzle.
+    # and the row information, by adding it to the puzzle. The index of each
+    # row in rows is the line_id of the row in the puzzle.
     for i, row in enumerate(rows):
-        line_id = i
         x = row[0]
         y = row[1]
         length = row[2]

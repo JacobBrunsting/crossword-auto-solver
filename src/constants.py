@@ -6,6 +6,7 @@ DRAW_PUZZLE_STR =           ("Draw the puzzle by selecting the spaces it " +
 WORD_BANK_ENTRY_STR =       ("Enter a word in the word bank, or enter q to " +
                              "end the word bank generation: ")
 WORD_BANK_WORD_ENTRY_STR =  ("{}. ")
+CLUE_ENTRY_STR =            ("Enter the clue for the word marked with X's\n: ")
 PRINTING_PUZZLE_STR =       ("This is what the puzzle looks like: ")
 SOLVE_TIME_STR =            ("Solved in {} second{} and {} millisecond{}")
 DISPLAYING_SOLUTIONS_STR =  ("Displaying solutions...")

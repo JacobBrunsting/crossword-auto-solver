@@ -7,6 +7,7 @@ Created on Sep 6, 2016
 import crossword_tools
 import constants
 import crossword_gui
+import clue_scraper
 import solver
 import time
 
@@ -28,22 +29,18 @@ def main():
             user_input = input(constants.NO_SOLUTIONS_STR)
             if user_input == 'y':
                 main()
+        
+        puzzle_line_ids = puzzle.get_line_ids()
+        clues_by_line = get_clues_from_user(puzzle, puzzle_line_ids)
+        
+        possible_words_by_line = {}
+        for line_id in puzzle_line_ids:
+            possible_words_by_line[line_id] = clue_scraper.get_clue_possible_answers(clues_by_line[line_id], puzzle.lines[line_id].length)
             
-        print(constants.PRINTING_PUZZLE_STR)
-        crossword_tools.print_puzzle(puzzle)
-        word_bank = []
-        word_count = 0
-        print(constants.WORD_BANK_ENTRY_STR)
-        while True:
-            word_count += 1
-            user_input = input(constants.WORD_BANK_WORD_ENTRY_STR.format(word_count))
-            if user_input == "q":
-                break
-            word_bank.append(user_input)
         
         print(constants.SOLVING_STR)
         start_time = time.clock()
-        solutions = solver.solve(puzzle, word_bank)
+        solutions = solver.find_solutions(puzzle, possible_words_by_line)
         end_time = time.clock()
         diff = end_time - start_time
         seconds = round(diff)
@@ -98,5 +95,12 @@ def read_int(message, min_val):
                 print(constants.TOO_LOW_INPUT_STR.format(min_val))
         except ValueError:
             print(constants.IMPROPER_INPUT_STR)
+            
+def get_clues_from_user(puzzle, line_ids):
+    clues = {}
+    for i in line_ids:
+        crossword_tools.print_puzzle(puzzle, i)
+        clues[i] = input(constants.CLUE_ENTRY_STR)
+    return clues
 
 main();
