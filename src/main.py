@@ -34,8 +34,14 @@ def main():
         clues_by_line = get_clues_from_user(puzzle, puzzle_line_ids)
         
         possible_words_by_line = {}
+        # CONCURRENCY DOOOOOO
         for line_id in puzzle_line_ids:
-            possible_words_by_line[line_id] = clue_scraper.get_clue_possible_answers(clues_by_line[line_id], puzzle.lines[line_id].length)
+            possibilities = clue_scraper.get_clue_possible_answers(clues_by_line[line_id], puzzle.lines[line_id].length)
+            if possibilities == None:
+                print(constants.WEB_SCRAPE_ERROR)
+                return
+                
+            possible_words_by_line[line_id] = possibilities;
             
         
         print(constants.SOLVING_STR)
